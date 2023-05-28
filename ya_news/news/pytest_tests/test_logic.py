@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from random import choice
 
 import pytest
 from pytest_django.asserts import assertRedirects, assertFormError
@@ -24,8 +25,9 @@ def test_anonymous_user_cant_create_comment(client, pk_from_news, form_data):
         f' ожидалось {expected_comments}')
 
 
-def test_user_can_create_comment(admin_client, pk_from_news, form_data):
-    url = reverse('news:detail', args=pk_from_news)
+def test_user_can_create_comment(
+        admin_user, admin_client, news, form_data):
+    url = reverse('news:detail', args=[news.pk])
     response = admin_client.post(url, data=form_data)
     expected_url = url + '#comments'
     assertRedirects(response, expected_url)
@@ -36,10 +38,12 @@ def test_user_can_create_comment(admin_client, pk_from_news, form_data):
         f' ожидалось {expected_comments}')
     new_comment = Comment.objects.get()
     assert new_comment.text == form_data['text']
+    assert new_comment.news == news
+    assert new_comment.author == admin_user
 
 
 def test_user_cant_use_bad_words(admin_client, pk_from_news):
-    bad_words_data = {'text': f'Какой-то текст, {BAD_WORDS[0]}, еще текст'}
+    bad_words_data = {'text': f'Какой-то text, {choice(BAD_WORDS)}, еще text'}
     url = reverse('news:detail', args=pk_from_news)
     response = admin_client.post(url, data=bad_words_data)
     assertFormError(response, form='form', field='text', errors=WARNING)
@@ -76,13 +80,13 @@ def test_author_can_delete_comment(
 def test_other_user_cant_edit_comment(
         admin_client, pk_from_news, comment, form_data):
     url = reverse('news:edit', args=[comment.pk])
+    old_comment = comment.text
     response = admin_client.post(url, data=form_data)
     assert response.status_code == HTTPStatus.NOT_FOUND
-    comments_count = Comment.objects.count()
-    expected_comments = 1
-    assert comments_count == expected_comments, (
-        f'Создано {comments_count} комментариев,'
-        f' ожидалось {expected_comments}')
+    comment.refresh_from_db()
+    assert comment.text == old_comment, (
+        f'Комментарий "{comment.text}" был обновлен,'
+        f' ожидался {old_comment}')
 
 
 def test_other_user_cant_delete_comment(

@@ -34,7 +34,8 @@ class TestNoteCreation(TestCase):
         self.assertEqual(current_notes_count, expected_notes_count,
                          self._get_err_msg(current_notes_count,
                                            expected_notes_count))
-        new_note = Note.objects.get()
+        new_note = Note.objects.filter(slug=self.form_data['slug']).first()
+        self.assertIsNotNone(new_note)
         self.assertEqual(new_note.title, self.form_data['title'])
         self.assertEqual(new_note.text, self.form_data['text'])
         self.assertEqual(new_note.slug, self.form_data['slug'])
@@ -69,8 +70,9 @@ class TestNoteCreation(TestCase):
         self.assertEqual(current_notes_count, expected_notes_count,
                          self._get_err_msg(current_notes_count,
                                            expected_notes_count))
-        new_note = Note.objects.get()
         expected_slug = slugify(self.form_data['title'])
+        new_note = Note.objects.filter(slug=expected_slug).first()
+        self.assertIsNotNone(new_note)
         self.assertEqual(new_note.slug, expected_slug,
                          self._get_err_msg(new_note.slug,
                                            expected_slug))
@@ -111,7 +113,8 @@ class TestNoteEditDelete(TestCase):
     def test_other_user_cant_edit_note(self):
         res = self.reader_client.post(self.edit_note_url, self.form_data)
         self.assertEqual(res.status_code, HTTPStatus.NOT_FOUND)
-        note_from_db = Note.objects.get(id=self.note.id)
+        note_from_db = Note.objects.filter(id=self.note.id).first()
+        self.assertIsNotNone(note_from_db)
         self.assertEqual(self.note.title, note_from_db.title)
         self.assertEqual(self.note.text, note_from_db.text)
 
